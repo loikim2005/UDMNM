@@ -79,3 +79,77 @@
         function closeLoginModal() {
           modal.classList.remove("open");
           if (actionsEl) actionsEl.style.display = "";     
+
+ }
+
+        function openLoginModal(success, message) {
+          titleEl.textContent = success ? "Đăng nhập thành công" : "Đăng nhập thất bại";
+          msgEl.textContent = message || (success ? "Đang chuyển vào hệ thống…" : "Vui lòng thử lại.");
+          if (success) {
+            if (actionsEl) actionsEl.style.display = "none";
+            modal.classList.add("open");
+            window.setTimeout(function () {
+              window.location.href = "app.html#dashboard";
+            }, 1000);
+          } else {
+            if (actionsEl) actionsEl.style.display = "";
+            btnDismiss.textContent = "Đóng";
+            modal.classList.add("open");
+          }
+        }
+
+        btnDismiss.addEventListener("click", closeLoginModal);
+        modal.addEventListener("click", function (e) {
+          if (e.target === modal) closeLoginModal();
+        });
+
+        document.getElementById("login-form").addEventListener("submit", function (e) {
+          e.preventDefault();
+          var err = document.getElementById("login-error");
+          var btn = document.getElementById("login-submit");
+          var user = (document.getElementById("user").value || "").trim();
+          var pass = document.getElementById("pass").value || "";
+          err.textContent = "";
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span> Đang đăng nhập...';
+          fetch(API_BASE + "/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: user, password: pass }),
+          })
+            .then(function (r) {
+              return r
+                .json()
+                .catch(function () {
+                  return { error: "Phản hồi không phải JSON.", status: r.status };
+                })
+                .then(function (data) {
+                  return { ok: r.ok, status: r.status, data: data };
+                });
+            })
+            .then(function (res) {
+              if (!res.ok || !res.data.ok) {
+                openLoginModal(false, (res.data && res.data.error) || "Sai tài khoản hoặc mật khẩu.");
+                return;
+              }
+              try {
+                sessionStorage.setItem(FA_TOKEN_KEY, res.data.token);
+              } catch (x) {
+                openLoginModal(false, "Trình duyệt không cho lưu phiên đăng nhập.");
+                return;
+              }
+              openLoginModal(true, "Đăng nhập hợp lệ.");
+            })
+            .catch(function () {
+              openLoginModal(false, "Không kết nối được API. Kiểm tra Flask đang chạy và đúng API_BASE.");
+            })
+            .finally(function () {
+              btn.disabled = false;
+              btn.textContent = "Đăng nhập";
+            });
+        });
+      })();
+    </script>
+  </body>
+</html>
+         

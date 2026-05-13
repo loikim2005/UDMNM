@@ -180,4 +180,38 @@ def train_from_directory(
     if not saved_npz_paths:
         raise ValueError("Không có ảnh hợp lệ để train (ảnh lỗi hoặc không detect được mặt).")
 
+    # Xóa file cũ (một file chung) nếu còn sót từ phiên bản trước.
+    legacy = root / "embeddings.npz"
+    if legacy.is_file():
+        try:
+            legacy.unlink()
+        except Exception:
+            pass
 
+    return {
+        "ok": True,
+        "embeddings_paths": saved_npz_paths,
+        "num_students": len(unique_students),
+        "folders_seen": folders_seen,
+        "folders_used": folders_used,
+        "images_seen": images_seen,
+        "images_used": images_used,
+        "images_skipped_decode": images_skipped_decode,
+        "images_skipped_no_face": images_skipped_no_face,
+        "message": "Đã tạo embeddings per-student (data/<MSSV>/embeddings.npz).",
+    }
+
+
+def default_train_epochs() -> int:
+    return int(os.environ.get("TRAIN_EPOCHS", "30"))
+
+
+if __name__ == "__main__":
+    import argparse
+    import json
+
+    p = argparse.ArgumentParser(description="Train CNN từ thư mục data/<MSSV>/")
+    p.add_argument("--epochs", type=int, default=default_train_epochs())
+    args = p.parse_args()
+    out = train_from_directory(epochs=args.epochs)
+    print(json.dumps(out, ensure_ascii=False, indent=2))

@@ -53,4 +53,29 @@
         </div>
       </div>
     </div>
-       
+  <div class="modal-overlay" id="modal-login-result" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal" style="max-width: 420px">
+        <h3 id="modal-login-title" style="margin-top: 0; text-align: center"></h3>
+        <p id="modal-login-msg" style="text-align: center; margin-bottom: 0"></p>
+        <div class="modal-actions" id="modal-login-actions" style="justify-content: center; margin-top: 1.25rem; flex-wrap: wrap; gap: 0.5rem">
+          <button type="button" class="btn btn-secondary" id="modal-login-dismiss">Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        // Chạy 1 địa chỉ qua Apache/Laragon:
+        //   UI:  http://localhost:8080/mnm/
+        //   API: http://localhost:8080/mnm/api/
+        var API_BASE = (window.API_BASE || (location.origin + "/mnm/api")).replace(/\/$/, "");
+        var FA_TOKEN_KEY = "fa_token";
+        var modal = document.getElementById("modal-login-result");
+        var titleEl = document.getElementById("modal-login-title");
+        var msgEl = document.getElementById("modal-login-msg");
+        var btnDismiss = document.getElementById("modal-login-dismiss");
+        var actionsEl = document.getElementById("modal-login-actions");
+
+        function closeLoginModal() {
+          modal.classList.remove("open");
+          if (actionsEl) actionsEl.style.display = "";     

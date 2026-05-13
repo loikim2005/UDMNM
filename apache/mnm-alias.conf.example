@@ -1,0 +1,18 @@
+# ---------------------------------------------------------------------------
+# CACH 1 (KHUYEN NGHI): Khong can file nay neu da chay install-laragon-www-mnm.bat
+#   -> Project nam tai .../www/mnm/  => URL: http://localhost:8080/mnm/
+# ---------------------------------------------------------------------------
+#
+# CACH 2: Alias toi thu muc NGOAI www (vi du Desktop) — Apache thuong CHAN va tra 403.
+#   Neu bat buoc dung Desktop, them khoi Directory duoi va dam bao duong dan dung.
+#
+# Laragon -> Apache -> httpd.conf -> them dong:
+#   Include "C:/Users/Admin/Desktop/mnm/apache/mnm-alias.conf"
+# (doi duong dan cho dung may ban)
+
+Alias /mnm "C:/Users/Admin/Desktop/mnm"
+<Directory "C:/Users/Admin/Desktop/mnm">
+    AllowOverride All
+    Options -Indexes +FollowSymLinks
+    Require all granted
+</Directory>

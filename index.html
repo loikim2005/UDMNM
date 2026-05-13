@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Đăng nhập — TNU</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <div class="login-page">
+      <div class="login-hero">
+        <h1>TNU</h1>
+        <p>
+          Bảng quản trị điểm danh bằng nhận diện khuôn mặt — an toàn, minh bạch,
+          phù hợp môi trường giáo dục và doanh nghiệp.
+        </p>
+      </div>
+      <div class="login-panel">
+        <div class="login-card">
+          <h2>Đăng nhập quản trị</h2>
+          <form id="login-form" action="#" method="post">
+            <div class="form-group">
+              <label for="user">Tên đăng nhập</label>
+              <input id="user" name="user" type="text" autocomplete="username" placeholder="Nhập tên đăng nhập" />
+  </div>
+            <div class="form-group">
+              <label for="pass">Mật khẩu</label>
+              <input
+                id="pass"
+                name="pass"
+                type="password"
+                autocomplete="current-password"
+                placeholder="••••••••"
+              />
+            </div>
+            <div class="form-group">
+              <label class="login-remember" for="remember">
+                <input id="remember" name="remember" type="checkbox" />
+                <span>Ghi nhớ đăng nhập</span>
+              </label>
+            </div>
+            <p id="login-error" class="text-muted" style="margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--danger); min-height: 1.25rem"></p>
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem" id="login-submit">
+              Đăng nhập
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  <div class="modal-overlay" id="modal-login-result" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal" style="max-width: 420px">
+        <h3 id="modal-login-title" style="margin-top: 0; text-align: center"></h3>
+        <p id="modal-login-msg" style="text-align: center; margin-bottom: 0"></p>
+        <div class="modal-actions" id="modal-login-actions" style="justify-content: center; margin-top: 1.25rem; flex-wrap: wrap; gap: 0.5rem">
+          <button type="button" class="btn btn-secondary" id="modal-login-dismiss">Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        // Chạy 1 địa chỉ qua Apache/Laragon:
+        //   UI:  http://localhost:8080/mnm/
+        //   API: http://localhost:8080/mnm/api/
+        var API_BASE = (window.API_BASE || (location.origin + "/mnm/api")).replace(/\/$/, "");
+        var FA_TOKEN_KEY = "fa_token";
+        var modal = document.getElementById("modal-login-result");
+        var titleEl = document.getElementById("modal-login-title");
+        var msgEl = document.getElementById("modal-login-msg");
+        var btnDismiss = document.getElementById("modal-login-dismiss");
+        var actionsEl = document.getElementById("modal-login-actions");
+
+        function closeLoginModal() {
+          modal.classList.remove("open");
+          if (actionsEl) actionsEl.style.display = "";     
+
+ }
+
+        function openLoginModal(success, message) {
+          titleEl.textContent = success ? "Đăng nhập thành công" : "Đăng nhập thất bại";
+          msgEl.textContent = message || (success ? "Đang chuyển vào hệ thống…" : "Vui lòng thử lại.");
+          if (success) {
+            if (actionsEl) actionsEl.style.display = "none";
+            modal.classList.add("open");
+            window.setTimeout(function () {
+              window.location.href = "app.html#dashboard";
+            }, 1000);
+          } else {
+            if (actionsEl) actionsEl.style.display = "";
+            btnDismiss.textContent = "Đóng";
+            modal.classList.add("open");
+          }
+        }
+
+        btnDismiss.addEventListener("click", closeLoginModal);
+        modal.addEventListener("click", function (e) {
+          if (e.target === modal) closeLoginModal();
+        });
+
+        document.getElementById("login-form").addEventListener("submit", function (e) {
+          e.preventDefault();
+          var err = document.getElementById("login-error");
+          var btn = document.getElementById("login-submit");
+          var user = (document.getElementById("user").value || "").trim();
+          var pass = document.getElementById("pass").value || "";
+          err.textContent = "";
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span> Đang đăng nhập...';
+          fetch(API_BASE + "/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: user, password: pass }),
+          })
+            .then(function (r) {
+              return r
+                .json()
+                .catch(function () {
+                  return { error: "Phản hồi không phải JSON.", status: r.status };
+                })
+                .then(function (data) {
+                  return { ok: r.ok, status: r.status, data: data };
+                });
+            })
+            .then(function (res) {
+              if (!res.ok || !res.data.ok) {
+                openLoginModal(false, (res.data && res.data.error) || "Sai tài khoản hoặc mật khẩu.");
+                return;
+              }
+              try {
+                sessionStorage.setItem(FA_TOKEN_KEY, res.data.token);
+              } catch (x) {
+                openLoginModal(false, "Trình duyệt không cho lưu phiên đăng nhập.");
+                return;
+              }
+              openLoginModal(true, "Đăng nhập hợp lệ.");
+            })
+            .catch(function () {
+              openLoginModal(false, "Không kết nối được API. Kiểm tra Flask đang chạy và đúng API_BASE.");
+            })P
+            .finally(function () {
+              btn.disabled = false;
+              btn.textContent = "Đăng nhập";
+            });
+        });
+      })();
+    </script>
+  </body>
+</html>
+         

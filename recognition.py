@@ -131,3 +131,71 @@ def recognize_faces_in_frame(
     names: np.ndarray,
     fetch_student_by_code: Callable[[str], Optional[Dict[str, Any]]],
     max_faces: int = 3,
+) -> List[Dict[str, Any]]:
+    if frame_rgb is None or frame_rgb.size == 0:
+        return []
+    if embeddings_db is None or getattr(embeddings_db, "size", 0) == 0:
+        _log.warning("[RECOGNITION] No embeddings found")
+        return []
+    print(f"DB embeddings: {len(embeddings_db)}", flush=True)
+
+    min_conf = float(os.environ.get("RECOGNITION_THRESHOLD", "0.88"))
+    h, w = frame_rgb.shape[:2]
+    out: List[Dict[str, Any]] = []
+    for det in detections[: max(int(max_faces), 1)]:
+        x1 = max(0, min(w - 1, int(det.x1)))
+        y1 = max(0, min(h - 1, int(det.y1)))
+        x2 = max(0, min(w - 1, int(det.x2)))
+        y2 = max(0, min(h - 1, int(det.y2)))
+        if x2 <= x1 or y2 <= y1:
+            continue
+        crop = frame_rgb[y1:y2, x1:x2]
+        if crop.size == 0:
+            continue
+        try:
+            face_rgb = cv2.resize(crop, _FACE_SIZE, interpolation=cv2.INTER_AREA)
+            emb = embedding_from_face_rgb(face_rgb)
+            best = _best_match_one_embedding(emb, embeddings_db, labels, names)
+            best_score = float(best.get("best_score", -1.0))
+            if (not best.get("matched")) or best_score < float(min_conf):
+                if best_score >= 0:
+                    _log.info(f"[RECOGNITION] UNKNOWN | Best similarity={best_score:.4f}")
+                continue
+        except Exception:
+            continue
+
+        # similarity * 100 = confidence (%).
+        confidence_percent = round(best_score * 100.0, 2)
+        matched = {
+            "student_code": str(best.get("student_code") or ""),
+            "full_name": best.get("full_name"),
+            "confidence": best_score,
+            "confidence_percent": confidence_percent,
+        }
+
+        row = fetch_student_by_code(matched["student_code"])
+        if row:
+            matched["full_name"] = row.get("full_name") or matched.get("full_name")
+            matched["class_code"] = row.get("class_code")
+            matched["student_db_id"] = row.get("id")
+        matched["bbox"] = {"x": x1, "y": y1, "w": x2 - x1, "h": y2 - y1}
+        matched["detector_confidence"] = round(float(det.confidence) * 100.0, 2)
+        _log.info(
+            f"[RECOGNITION] Best match: MSSV={matched['student_code']} | "
+            f"Similarity={best_score:.4f} | Confidence={confidence_percent:.2f}%"
+        )
+        out.append(matched)
+
+    out.sort(key=lambda m: float(m.get("confidence", 0.0)), reverse=True)
+    uniq: List[Dict[str, Any]] = []
+    seen = set()
+    for item in out:
+        sc = str(item.get("student_code") or "").strip()
+        if not sc or sc in seen:
+            continue
+        seen.add(sc)
+        uniq.append(item)
+        if len(uniq) >= max(int(max_faces), 1):
+            break
+    return uniq
+

@@ -53,3 +53,54 @@ def send_email(to_email: str, mssv: str, name: str, time: str, status: str, gps:
     body = f"""Xin chào sinh viên {name}...
 
 =>  Bạn đã điểm danh thành công
+
+Thông tin:
+- MSSV: {mssv}
+- Thời gian: {time}
+- GPS: {gps}
+- Trạng Thái: {status}
+
+Trân trọng,
+Xin cảm ơn bạn đã tin tưởng và sử dụng
+"""
+
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = mail_subject
+    msg["From"] = smtp_email
+    msg["To"] = to_email
+
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(smtp_email, smtp_password)
+            server.sendmail(smtp_email, [to_email], msg.as_string())
+        _log.info(f"[EMAIL] Da gui thong bao den sinh vien {name} - MSSV={mssv} - Email={to_email}")
+        return True
+    except Exception as e:
+        # Không raise để tránh ảnh hưởng luồng API
+        _log.error(f"[EMAIL] Failed to send email to {to_email} (MSSV={mssv}, name={name}): {e}")
+        return False
+
+
+def send_email_async(
+    to_email: str,
+    mssv: str,
+    name: str,
+    time: str,
+    status: str,
+    gps: str = "Chưa cập nhật",
+) -> Optional[threading.Thread]:
+    """
+    Gửi email ở background thread để API phản hồi nhanh hơn.
+    """
+    if not to_email:
+        return None
+    t = threading.Thread(
+        target=send_email,
+        args=(to_email, mssv, name, time, status, gps),
+        daemon=True,
+    )
+    t.start()
+    return t
